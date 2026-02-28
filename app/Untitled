@@ -1,0 +1,4 @@
+<main className="relative min-h-screen text-white">
+  <div className="pointer-events-none absolute inset-0 blob-gradient" />
+  <div className="relative">
+    {/* all your existing content goes here */}
