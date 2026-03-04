@@ -26,85 +26,89 @@ const ITEMS = [
 ];
 
 export default function HowItWorks() {
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const phoneRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const sectionRef = useRef<HTMLElement>(null);
+  const phone1Ref = useRef<HTMLDivElement>(null);
+  const phone2Ref = useRef<HTMLDivElement>(null);
+  const phone3Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const section = sectionRef.current;
-    const phones = phoneRefs.current;
-    if (!section || phones.some((p) => !p)) return;
+    const p1 = phone1Ref.current;
+    const p2 = phone2Ref.current;
+    const p3 = phone3Ref.current;
+    if (!section || !p1 || !p2 || !p3) return;
+
+    const phones = [p1, p2, p3];
 
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
 
     if (prefersReducedMotion) {
-      phones.forEach((el) => {
-        if (el) gsap.set(el, { opacity: 1, y: 0 });
-      });
+      phones.forEach((el) => gsap.set(el, { opacity: 1, y: 0 }));
       return;
     }
 
     const isDesktop = window.matchMedia("(min-width: 768px)").matches;
 
-    gsap.set(phones, { opacity: 0, y: 24 });
+    const ctx = gsap.context(() => {
+      gsap.set(phones, { opacity: 0, y: 40 });
 
-    if (isDesktop) {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: section,
-          start: "top 60%",
-          end: "+=900",
-          pin: true,
-          pinSpacing: true,
-          scrub: 0.6,
-          anticipatePin: 1,
-        },
-      });
-
-      phones.forEach((el, i) => {
-        tl.to(
-          el,
-          {
-            opacity: 1,
-            y: 0,
-            duration: 1,
-            ease: "power2.out",
+      if (isDesktop) {
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: section,
+            start: "top 60%",
+            end: "+=1200",
+            pin: true,
+            pinSpacing: true,
+            scrub: 0.5,
+            anticipatePin: 1,
           },
-          i * 0.8
-        );
-      });
-
-      return () => {
-        tl.kill();
-        ScrollTrigger.getAll().forEach((st) => {
-          if (st.trigger === section) st.kill();
         });
-      };
-    }
 
-    // Mobile: simple IntersectionObserver fade-in
-    const observers: IntersectionObserver[] = [];
+        tl.fromTo(
+          p1,
+          { opacity: 0, y: 40 },
+          { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
+        )
+          .fromTo(
+            p2,
+            { opacity: 0, y: 40 },
+            { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" },
+            "+=0.3"
+          )
+          .fromTo(
+            p3,
+            { opacity: 0, y: 40 },
+            { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" },
+            "+=0.3"
+          );
+      } else {
+        phones.forEach((el) => {
+          gsap.fromTo(
+            el,
+            { opacity: 0, y: 40 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.8,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: el,
+                start: "top 85%",
+                toggleActions: "play none none none",
+              },
+            }
+          );
+        });
+      }
+    }, section);
 
-    phones.forEach((el) => {
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) {
-            gsap.to(el, { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" });
-            obs.disconnect();
-          }
-        },
-        { threshold: 0.3 }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-
-    return () => {
-      observers.forEach((obs) => obs.disconnect());
-    };
+    return () => ctx.revert();
   }, []);
+
+  const phoneRefs = [phone1Ref, phone2Ref, phone3Ref];
 
   return (
     <section
@@ -127,9 +131,8 @@ export default function HowItWorks() {
             </div>
 
             <div
-              ref={(el) => { phoneRefs.current[i] = el; }}
-              className="mt-8 flex justify-center"
-              style={{ opacity: 0, transform: "translateY(24px)" }}
+              ref={phoneRefs[i]}
+              className="mt-8 flex justify-center will-change-[opacity,transform]"
             >
               <Image
                 src={item.image}
