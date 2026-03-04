@@ -176,15 +176,23 @@ export default function Home() {
           </a>
 
           <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
-            <a href="#how" className="hover:text-white">
-              How it works
-            </a>
-            <a href="#features" className="hover:text-white">
-              Work with us
-            </a>
-            <a href="#faq" className="hover:text-white">
-              FAQ
-            </a>
+            {[
+              { href: "#how", label: "How it works" },
+              { href: "#features", label: "Work with us" },
+              { href: "#faq", label: "FAQ" },
+            ].map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="hover:text-white"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.querySelector(link.href)?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                {link.label}
+              </a>
+            ))}
           </nav>
 
           <div ref={contactRef} className="relative">

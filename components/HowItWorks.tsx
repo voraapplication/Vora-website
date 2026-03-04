@@ -1,11 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
 
 const ITEMS = [
   {
@@ -26,101 +22,56 @@ const ITEMS = [
 ];
 
 export default function HowItWorks() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const phone1Ref = useRef<HTMLDivElement>(null);
-  const phone2Ref = useRef<HTMLDivElement>(null);
-  const phone3Ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState([false, false, false]);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const hasTriggered = useRef(false);
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    const p1 = phone1Ref.current;
-    const p2 = phone2Ref.current;
-    const p3 = phone3Ref.current;
-    if (!section || !p1 || !p2 || !p3) return;
-
-    const phones = [p1, p2, p3];
+  const trigger = useCallback(() => {
+    if (hasTriggered.current) return;
+    hasTriggered.current = true;
 
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
 
     if (prefersReducedMotion) {
-      phones.forEach((el) => gsap.set(el, { opacity: 1, y: 0 }));
+      setVisible([true, true, true]);
       return;
     }
 
-    const isDesktop = window.matchMedia("(min-width: 768px)").matches;
-
-    const ctx = gsap.context(() => {
-      gsap.set(phones, { opacity: 0, y: 40 });
-
-      if (isDesktop) {
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: section,
-            start: "top 60%",
-            end: "+=1200",
-            pin: true,
-            pinSpacing: true,
-            scrub: 0.5,
-            anticipatePin: 1,
-          },
+    ITEMS.forEach((_, i) => {
+      setTimeout(() => {
+        setVisible((prev) => {
+          const next = [...prev];
+          next[i] = true;
+          return next;
         });
-
-        tl.fromTo(
-          p1,
-          { opacity: 0, y: 40 },
-          { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
-        )
-          .fromTo(
-            p2,
-            { opacity: 0, y: 40 },
-            { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" },
-            "+=0.3"
-          )
-          .fromTo(
-            p3,
-            { opacity: 0, y: 40 },
-            { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" },
-            "+=0.3"
-          );
-      } else {
-        phones.forEach((el) => {
-          gsap.fromTo(
-            el,
-            { opacity: 0, y: 40 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.8,
-              ease: "power3.out",
-              scrollTrigger: {
-                trigger: el,
-                start: "top 85%",
-                toggleActions: "play none none none",
-              },
-            }
-          );
-        });
-      }
-    }, section);
-
-    return () => ctx.revert();
+      }, i * 650);
+    });
   }, []);
 
-  const phoneRefs = [phone1Ref, phone2Ref, phone3Ref];
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) trigger();
+      },
+      { threshold: 0.4 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [trigger]);
 
   return (
-    <section
-      ref={sectionRef}
-      id="how"
-      className="mx-auto w-full max-w-6xl px-6 py-16"
-    >
+    <section id="how" className="mx-auto w-full max-w-6xl px-6 py-16">
       <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
         How it works
       </h2>
 
-      <div className="mt-8 grid gap-12 md:grid-cols-3">
+      <div ref={sectionRef} className="mt-8 grid gap-12 md:grid-cols-3">
         {ITEMS.map((item, i) => (
           <div key={item.title} className="flex flex-col items-center text-center">
             <div className="glass-card p-6 w-full flex-1 transition-transform duration-300 ease-out will-change-transform hover:scale-[1.03]">
@@ -131,8 +82,12 @@ export default function HowItWorks() {
             </div>
 
             <div
-              ref={phoneRefs[i]}
-              className="mt-8 flex justify-center will-change-[opacity,transform]"
+              className={[
+                "mt-8 flex justify-center transition-all duration-1000 ease-out",
+                visible[i]
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-6",
+              ].join(" ")}
             >
               <Image
                 src={item.image}
