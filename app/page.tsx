@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import HowItWorks from "@/components/HowItWorks";
+import { supabase } from "@/lib/supabaseClient";
 
 const BUBBLES = [
   "Get more people to your venue",
@@ -79,6 +80,63 @@ export default function Home() {
   const [activeStep, setActiveStep] = useState(0);
   const [contactOpen, setContactOpen] = useState(false);
   const contactRef = useRef<HTMLDivElement | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [duplicate, setDuplicate] = useState(false);
+  const [honeypot, setHoneypot] = useState("");
+
+  function normalizeAustralianPhone(phone: string): string {
+    let cleaned = phone.replace(/\D/g, "");
+
+    if (cleaned.startsWith("0")) {
+      cleaned = cleaned.substring(1);
+    }
+
+    if (cleaned.startsWith("61")) {
+      return `+${cleaned}`;
+    }
+
+    return `+61${cleaned}`;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (honeypot !== "") return;
+    if (!phoneNumber.trim()) return;
+
+    const cleanedNumber = phoneNumber.replace(/\D/g, "");
+
+    if (cleanedNumber.length < 9) {
+      alert("Please enter a valid phone number");
+      return;
+    }
+
+    if (/(\d)\1{4,}/.test(cleanedNumber)) {
+      alert("Please enter a valid phone number");
+      return;
+    }
+
+    setLoading(true);
+
+    const formattedPhone = normalizeAustralianPhone(phoneNumber);
+
+    const { error } = await supabase
+      .from("waitlist_phone_numbers")
+      .insert([{ phone_number: formattedPhone }]);
+
+    setLoading(false);
+
+    if (!error) {
+      setSuccess(true);
+      setPhoneNumber("");
+    } else if (error.code === "23505") {
+      setDuplicate(true);
+      setPhoneNumber("");
+    } else {
+      console.error("Supabase error:", error);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -279,12 +337,20 @@ export default function Home() {
 
                 {/* This text stays the same */}
                 <p className="mt-5 text-base leading-relaxed text-white/70 md:text-lg">
-                  Vora helps you discover local sessions, join instantly, and meet great people —
-                  from padel and tennis to runs, swims, and hikes.
+                  Vora helps you meet new people through local sports and fitness events. Join instantly and meet like minded people - from tennis to padel, football, running and yoga.
                 </p>
 
-                {/* Waitlist stays the same */}
-                <div id="waitlist" className="mt-8 flex flex-col gap-3 sm:flex-row">
+                {/* Waitlist form */}
+                <form onSubmit={handleSubmit} id="waitlist" className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    type="text"
+                    name="company"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    style={{ position: "absolute", left: "-9999px", opacity: 0, height: 0, width: 0 }}
+                  />
                   <div className="flex h-11 w-full overflow-hidden rounded-full border border-white/15 bg-white/5 focus-within:border-white/30">
                     <div className="flex items-center px-4 text-sm text-white/70 border-r border-white/10">
                       +61
@@ -293,16 +359,30 @@ export default function Home() {
                     <input
                       type="tel"
                       placeholder="4xx xxx xxx"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
                       className="w-full bg-transparent px-4 text-sm text-white placeholder:text-white/40 outline-none"
                     />
                   </div>
 
-                  <button className="glass-btn h-11 px-6 text-sm">
-                    Get early access
+                  <button type="submit" disabled={loading} className="glass-btn h-11 px-6 text-sm">
+                    {loading ? "Joining..." : "Get early access"}
                   </button>
-                </div>
+                </form>
 
-                <p className="mt-3 text-xs text-white/50">No spam. Just launch updates + early access.</p>
+                {success && (
+                  <p className="mt-3 text-xs text-green-400">
+                    You're on the list! We'll text you when Vora launches.
+                  </p>
+                )}
+                {duplicate && (
+                  <p className="mt-3 text-xs text-green-400">
+                    You're already on the list!
+                  </p>
+                )}
+                {!success && !duplicate && (
+                  <p className="mt-3 text-xs text-white/50">No spam. Just launch updates + early access.</p>
+                )}
 
                 {/* Optional: small progress dots */}
                 <div className="mt-6 flex items-center gap-2">
@@ -362,15 +442,15 @@ export default function Home() {
             {[
               {
                 q: "When does Vora launch?",
-                a: "We’re starting in Sydney with early access, then expanding sport-by-sport and city-by-city.",
+                a: "We don't have an exact launch date set yet. We are aiming for late March / early April. Enter your phone number above to receive updates and exclusives first!",
               },
               {
                 q: "Is Vora free?",
-                a: "Joining and browsing will be free. Some sessions may have a small fee set by hosts/venues.",
+                a: "All Vora hosted events will be free to join. Keep an eye out for future updates about creating your own free or paid sport events.",
               },
               {
                 q: "What sports are supported?",
-                a: "Padel, tennis, runs, gym meetups, swims, hikes, basketball and more — based on demand.",
+                a: "Padel, Tennis, Pickleball, Basketball, Football, Running, Walking, Yoga. We will add more sports based on demand.",
               },
             ].map((item) => (
               <div key={item.q} className="glass-card p-6">
